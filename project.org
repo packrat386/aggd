@@ -1,0 +1,120 @@
+#+title: aggd project board
+#+author: packrat386
+
+* DONE Finalize Naming
+
+A Path is something like ~foo.bar.baz~, a location for some data. It has a text representation
+
+A Pattern is an expression that can match multiple paths. For example ~foo.*~ could match ~foo.bar~ and ~foo.baz~.
+
+An Observed Metric is a single instance of some numeric Value identified by a Path and observed at a Timestamp.
+
+A Window is a time range with a beginning and an end
+
+An Aggregated Metric is a summary of some function applied to a set of Observed Metrics or Aggregated Metrics that are all associated with the same Path and all fall within a given Window. It has a Path, a Window, and a numeric Value.
+
+An Aggregation Function is a function that is applied to Observed Metrics or Aggregated Metrics to create Aggregated Metrics. An Aggregation Function has a Name which has a text representation. It has a Source, a Granularity (which is a Window), and a Retention (which is a Window)
+
+A Query identifies a Path or multiple Paths matching some Pattern, a Window, and optionally filters by Aggregation Function.
+
+The goal of the project is to create a daemon that can listen for Observed Metrics, periodically run Aggregation Functions to persist Aggregated Metrics based on the Observed Metrics it receives, and then serve those Aggregated Metrics back in response to Queries.
+
+* TODO MVP
+
+** TODO Write Side
+
+*** TODO Accept Writes by UDP
+
+These writes are Observed Metrics
+
+Should accept the format specced by [[https://github.com/statsd/statsd/blob/master/README.md#usage][statsd]]
+
+Use [[https://github.com/cactus/go-statsd-client	][cactus/go-statsd]] for acceptance? Just check logs, dw about actually writing them
+
+*** TODO Aggregate Each Path On Schedule
+
+This will become the "primary" Aggregated Metrics. For now let's just do this every 60 seconds. Log results to verify
+
+the [[https://github.com/graphite-project/carbon/blob/master/conf/storage-schemas.conf.example][default in carbon]] for "primary" Aggregated Metrics is 60 seconds.
+
+Non configurable, just do avg, count, and max for now.
+
+*** TODO Persist Aggregated Metrics Per Path
+
+Use [[https://github.com/etcd-io/bbolt][bbolt]]
+
+For each path, for each Aggregated Metric, write a block. Limit the number of blocks and when you read the limit wrap around and write over the beginning. You need to track where the last block was written to and what the end of the last time range written was.
+
+the [[https://github.com/graphite-project/carbon/blob/master/conf/storage-schemas.conf.example][default in carbon]] for "primary" Aggregated Metrics is 1 day's worth of data at 60 second granularity
+
+*** TODO Resample Data Periodically For Long Term Retention
+
+For each Path with Aggregated Metrics, run "resample" Aggregation Functions to create new Aggregated Metrics for longer term lower granularity storage.
+
+the [[https://github.com/graphite-project/carbon/blob/master/conf/storage-schemas.conf.example][default in carbon]] for "resampled" Aggregated Metrics is 30 days worth of data at 5 minutes granularity and 3 years worth of data at 1 hour granularity
+
+** TODO Read Side
+
+HTTP JSON API
+
+*** TODO Define Pattern Matching Rules
+
+Gotta decide what are the valid Patterns and how they will match Paths. Two good options.
+
+A: "basic" statsd style.
+- ~foo.*.qux~ matches ~foo.bar.quz~ and ~foo.baz.qux~.
+- ~foo.*~ matches ~foo.bar~, ~foo.baz~, ~foo.bar.baz~, etc.
+
+B: plain ol regex.
+
+regex seems simpler and I don't have to implement it myself, but I do have to accept it over http which might kinda suck?
+
+*** TODO Get All Aggregated Metrics For One Path And Aggregation Function
+
+Gotta do something like ~GET /aggregated_metrics?path=foo.bar.baz&aggregation_function=primary_count~
+
+*** TODO Get Aggregated Metrics For One Path And Aggregation Function Within Window 
+
+*** TODO Get Aggregated Metrics For Multiple Aggregation Functions for One Path
+
+*** TODO Get Aggregated Metrics For All Paths Matching Pattern
+
+*** TODO Get All Paths Matching Pattern
+
+Not sure how important this is for MVP?
+
+** TODO Performance Goals
+
+*** TODO 100 TPS Writes
+
+*** TODO 10 TPS Reads
+
+*** TODO 1000 Unique Paths
+
+* TODO Stretch
+
+** TODO Graceful Shutdown
+
+** TODO Graceful Degradation
+
+If someone dumps a million billion datapoints in one second it'd be nice to intelligently time out rather than just eat pant
+
+** TODO Configure Default Aggregation Functions
+
+** TODO Configure Aggregation Functions Per Path
+
+[[https://graphite.readthedocs.io/en/latest/config-carbon.html#storage-schemas-conf][carbon config options]]
+
+Should require a primary and some number of resamples
+
+** TODO Support More Aggregation Functions
+
+p90, p99, arbitrary pN? Fancy stats?
+
+** TODO Support Changing Configured Aggregation Functions With Existing Data
+
+** TODO Support Hot Config Reload
+
+** TODO Support More Advanced Search
+
+** TODO 
