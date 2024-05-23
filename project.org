@@ -29,7 +29,7 @@ These writes are Observed Metrics
 
 Should accept the format specced by [[https://github.com/statsd/statsd/blob/master/README.md#usage][statsd]]
 
-Use [[https://github.com/cactus/go-statsd-client	][cactus/go-statsd]] for acceptance? Just check logs, dw about actually writing them
+Use [[https://github.com/cactus/go-statsd-client][cactus/go-statsd]] for acceptance? Just check logs, dw about actually writing them
 
 *** TODO Aggregate Each Path On Schedule
 
